@@ -97,6 +97,43 @@ export function calculateBearing(
 }
 
 /**
+ * Calculates Solar Local Time & UTC Offset from Longitude (15° = 1 hour).
+ */
+export function calculateSolarTime(lon: number): {
+  utcOffsetString: string;
+  solarTimeString: string;
+  hoursOffset: number;
+} {
+  const hoursOffset = lon / 15;
+  const totalMinutesOffset = Math.round(hoursOffset * 60);
+
+  const sign = totalMinutesOffset >= 0 ? '+' : '-';
+  const absMinutes = Math.abs(totalMinutesOffset);
+  const offsetHours = Math.floor(absMinutes / 60);
+  const offsetMins = absMinutes % 60;
+  const utcOffsetString = `UTC${sign}${offsetHours.toString().padStart(2, '0')}:${offsetMins.toString().padStart(2, '0')}`;
+
+  // Current UTC time + solar offset
+  const now = new Date();
+  const utcTime = now.getTime() + now.getTimezoneOffset() * 60000;
+  const localSolarDate = new Date(utcTime + totalMinutesOffset * 60000);
+
+  let hours = localSolarDate.getUTCHours();
+  const minutes = localSolarDate.getUTCMinutes();
+  const ampm = hours >= 12 ? 'PM' : 'AM';
+  hours = hours % 12;
+  hours = hours ? hours : 12; // 12-hour format
+  const minutesStr = minutes < 10 ? '0' + minutes : minutes;
+  const solarTimeString = `${hours}:${minutesStr} ${ampm}`;
+
+  return {
+    utcOffsetString,
+    solarTimeString,
+    hoursOffset,
+  };
+}
+
+/**
  * Formats coordinates into cardinal degrees representation.
  */
 export function formatCoordinates(lat: number, lon: number): {

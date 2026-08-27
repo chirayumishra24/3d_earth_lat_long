@@ -15,8 +15,9 @@ import {
   ChevronDown,
   ChevronUp,
   Layers,
+  Clock,
 } from 'lucide-react';
-import { formatCoordinates, findNearestLocation } from '@/lib/geo';
+import { formatCoordinates, findNearestLocation, calculateSolarTime } from '@/lib/geo';
 import { Challenge } from '@/lib/challenges';
 import { FeedbackResult } from '@/lib/feedback';
 import { HemisphereMode } from '../scene/HemispheresOverlay';
@@ -89,6 +90,7 @@ export const MasterSidebarCard: React.FC<MasterSidebarCardProps> = ({
 
   const { latValue, latDir, lonValue, lonDir } = formatCoordinates(lat, lon);
   const { displayText, category, distanceKm } = findNearestLocation(lat, lon);
+  const { utcOffsetString, solarTimeString } = calculateSolarTime(lon);
 
   const handleLatSlider = (e: React.ChangeEvent<HTMLInputElement>) => {
     onCoordinateChange(parseFloat(e.target.value), lon);
@@ -215,6 +217,20 @@ export const MasterSidebarCard: React.FC<MasterSidebarCardProps> = ({
               </span>
               <span className="font-bold text-slate-100 text-xs sm:text-sm">
                 {displayText}
+              </span>
+            </div>
+          </div>
+
+          {/* Local Solar Time & Longitude UTC Offset */}
+          <div className="flex items-center justify-between bg-slate-950/60 px-3 py-2 rounded-xl border border-white/5 text-xs text-slate-300">
+            <div className="flex items-center gap-1.5 text-slate-400">
+              <Clock className="w-3.5 h-3.5 text-amber-400" />
+              <span className="text-[10px] font-bold uppercase tracking-wider">Solar Time:</span>
+            </div>
+            <div className="flex items-center gap-2 font-mono">
+              <span className="font-bold text-slate-100">{solarTimeString}</span>
+              <span className="text-[10px] px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-300 border border-amber-500/30 font-bold">
+                {utcOffsetString}
               </span>
             </div>
           </div>
