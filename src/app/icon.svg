@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" width="32" height="32">
+  <defs>
+    <radialGradient id="globeGrad" cx="35%" cy="35%" r="65%">
+      <stop offset="0%" stop-color="#38BDF8" />
+      <stop offset="60%" stop-color="#0284C7" />
+      <stop offset="100%" stop-color="#0369A1" />
+    </radialGradient>
+  </defs>
+  <circle cx="16" cy="16" r="14" fill="url(#globeGrad)" stroke="#38BDF8" stroke-width="1.5" />
+  <!-- Equator -->
+  <ellipse cx="16" cy="16" rx="14" ry="4.5" fill="none" stroke="#F59E0B" stroke-width="1.5" />
+  <!-- Prime Meridian -->
+  <ellipse cx="16" cy="16" rx="4.5" ry="14" fill="none" stroke="#38BDF8" stroke-width="1.2" />
+  <!-- Central Pin -->
+  <circle cx="16" cy="16" r="2" fill="#F59E0B" />
+</svg>
