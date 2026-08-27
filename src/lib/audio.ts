@@ -154,6 +154,10 @@ class SoundManager {
       osc.stop(this.ctx.currentTime + i * 0.09 + 0.45);
     });
   }
+
+  public playFanfare() {
+    this.playSuccess();
+  }
 }
 
 export const soundManager = new SoundManager();

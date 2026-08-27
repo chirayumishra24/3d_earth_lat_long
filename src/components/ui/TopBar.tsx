@@ -12,6 +12,7 @@ import {
   Navigation2,
   Compass,
   BookOpen,
+  GraduationCap,
 } from 'lucide-react';
 import { soundManager } from '@/lib/audio';
 
@@ -26,6 +27,7 @@ interface TopBarProps {
   onOpenHelp: () => void;
   onOpenTour: () => void;
   onOpenVisualGuide: () => void;
+  onOpenAssessment: () => void;
 }
 
 export const TopBar: React.FC<TopBarProps> = ({
@@ -39,6 +41,7 @@ export const TopBar: React.FC<TopBarProps> = ({
   onOpenHelp,
   onOpenTour,
   onOpenVisualGuide,
+  onOpenAssessment,
 }) => {
   const toggleMute = () => {
     const next = !isMuted;
@@ -135,6 +138,19 @@ export const TopBar: React.FC<TopBarProps> = ({
           className="p-2.5 rounded-2xl bg-slate-900/85 backdrop-blur-xl border border-white/10 text-slate-400 hover:text-slate-100 hover:bg-slate-800 transition-colors shadow-lg"
         >
           {isMuted ? <VolumeX className="w-4 h-4 text-rose-400" /> : <Volume2 className="w-4 h-4 text-slate-300" />}
+        </button>
+
+        {/* Assessment Lab Button */}
+        <button
+          onClick={() => {
+            soundManager.playClick();
+            onOpenAssessment();
+          }}
+          title="Interactive Classroom Assessment & Quiz"
+          className="flex items-center gap-1.5 px-3 py-2 rounded-2xl bg-gradient-to-r from-amber-500 to-amber-400 text-xs font-bold text-slate-950 hover:from-amber-400 hover:to-amber-300 transition-colors shadow-lg shadow-amber-500/20"
+        >
+          <GraduationCap className="w-3.5 h-3.5 stroke-[2.5]" />
+          <span className="hidden sm:inline">Assessment Lab</span>
         </button>
 
         {/* Illustrated Guide Button */}

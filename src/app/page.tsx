@@ -11,6 +11,7 @@ import { HelpModal } from '@/components/ui/HelpModal';
 import { WelcomeScreen } from '@/components/ui/WelcomeScreen';
 import { GuidedTour } from '@/components/ui/GuidedTour';
 import { VisualChapterGuideModal } from '@/components/ui/VisualChapterGuideModal';
+import { AssessmentModuleModal } from '@/components/assessment/AssessmentModuleModal';
 import { HemisphereMode } from '@/components/scene/HemispheresOverlay';
 import { CHALLENGES, Challenge } from '@/lib/challenges';
 import { calculateFeedback, FeedbackResult } from '@/lib/feedback';
@@ -30,6 +31,7 @@ export default function Home() {
   const [isWelcomeOpen, setIsWelcomeOpen] = useState<boolean>(true);
   const [isTourOpen, setIsTourOpen] = useState<boolean>(false);
   const [isVisualGuideOpen, setIsVisualGuideOpen] = useState<boolean>(false);
+  const [isAssessmentOpen, setIsAssessmentOpen] = useState<boolean>(false);
 
   // Marker Lat/Lon state (Default at New Delhi ~28.61° N, 77.23° E)
   const [markerLat, setMarkerLat] = useState<number>(28.61);
@@ -161,6 +163,7 @@ export default function Home() {
         onOpenHelp={() => setIsHelpModalOpen(true)}
         onOpenTour={() => setIsTourOpen(true)}
         onOpenVisualGuide={() => setIsVisualGuideOpen(true)}
+        onOpenAssessment={() => setIsAssessmentOpen(true)}
       />
 
       {/* 2. MAIN 3D GLOBE CANVAS (FULLSCREEN BACKGROUND) */}
@@ -263,6 +266,11 @@ export default function Home() {
         isOpen={isVisualGuideOpen}
         onClose={() => setIsVisualGuideOpen(false)}
         onJumpToLessonPreset={handleJumpCoordinate}
+      />
+
+      <AssessmentModuleModal
+        isOpen={isAssessmentOpen}
+        onClose={() => setIsAssessmentOpen(false)}
       />
 
       <SuccessModal
