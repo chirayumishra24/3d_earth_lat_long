@@ -48,28 +48,26 @@ export const TopBar: React.FC<TopBarProps> = ({
   };
 
   return (
-    <header className="fixed top-0 left-0 right-0 z-30 px-4 py-3 flex items-center justify-between pointer-events-none">
+    <header className="fixed top-0 left-0 right-0 z-30 h-16 px-4 sm:px-6 bg-slate-950/85 backdrop-blur-2xl border-b border-white/10 flex items-center justify-between shadow-2xl">
       {/* LEFT: Branding & Topic info */}
-      <div className="flex items-center gap-3 pointer-events-auto">
-        <div className="flex items-center gap-2.5 bg-slate-900/85 backdrop-blur-xl border border-white/10 px-3.5 py-2 rounded-2xl shadow-2xl">
-          <div className="w-8 h-8 rounded-xl bg-gradient-to-tr from-amber-500 to-amber-300 flex items-center justify-center shadow-lg shadow-amber-500/25">
-            <Globe2 className="w-5 h-5 text-slate-950 stroke-[2.5]" />
+      <div className="flex items-center gap-2.5">
+        <div className="w-8 h-8 rounded-xl bg-gradient-to-tr from-amber-500 to-amber-300 flex items-center justify-center shadow-lg shadow-amber-500/25 shrink-0">
+          <Globe2 className="w-4.5 h-4.5 text-slate-950 stroke-[2.5]" />
+        </div>
+        <div>
+          <div className="text-[10px] uppercase tracking-wider font-bold text-amber-400 flex items-center gap-1.5 leading-none">
+            <span>Chapter 4</span>
+            <span className="w-1 h-1 rounded-full bg-slate-500"></span>
+            <span className="text-slate-400">Geography Lab</span>
           </div>
-          <div>
-            <div className="text-xs uppercase tracking-wider font-bold text-amber-400 flex items-center gap-1.5">
-              <span>Chapter 4</span>
-              <span className="w-1 h-1 rounded-full bg-slate-600"></span>
-              <span className="text-slate-400">Geography Lab</span>
-            </div>
-            <h1 className="text-sm sm:text-base font-bold text-slate-100 tracking-tight flex items-center gap-1.5">
-              3D Earth Coordinate Explorer
-            </h1>
-          </div>
+          <h1 className="text-xs sm:text-sm font-bold text-slate-100 tracking-tight leading-tight mt-0.5">
+            3D Earth Coordinate Explorer
+          </h1>
         </div>
       </div>
 
       {/* CENTER: Mode Switcher (Explore ⇄ Challenge) */}
-      <div className="pointer-events-auto bg-slate-900/85 backdrop-blur-xl border border-white/10 p-1 rounded-full shadow-2xl flex items-center gap-1">
+      <div className="bg-slate-900/90 border border-white/10 p-1 rounded-full shadow-lg flex items-center gap-1">
         <button
           onClick={() => {
             soundManager.playClick();
@@ -102,7 +100,7 @@ export const TopBar: React.FC<TopBarProps> = ({
       </div>
 
       {/* RIGHT: Stats & Control actions */}
-      <div className="flex items-center gap-2 pointer-events-auto">
+      <div className="flex items-center gap-2">
         {mode === 'challenge' && (
           <div className="hidden sm:flex items-center gap-3 bg-slate-900/85 backdrop-blur-xl border border-white/10 px-3.5 py-1.5 rounded-2xl shadow-xl">
             <div className="flex items-center gap-1.5 text-xs text-amber-400 font-bold">

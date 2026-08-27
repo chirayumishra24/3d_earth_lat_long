@@ -188,8 +188,8 @@ export default function Home() {
       </div>
 
       {/* 3. CONSOLIDATED LEFT OBSERVATORY CARD */}
-      <div className="relative z-10 w-full h-full flex flex-col justify-start p-4 sm:p-6 pt-20 sm:pt-22 pointer-events-none">
-        <div id="section-readout" className="flex flex-col gap-3 pointer-events-auto items-start">
+      <div className="fixed top-20 left-4 sm:left-6 z-20 pointer-events-none">
+        <div id="section-readout" className="pointer-events-auto">
           <MasterSidebarCard
             lat={markerLat}
             lon={markerLon}
