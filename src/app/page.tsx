@@ -32,6 +32,12 @@ export default function Home() {
   const [isTourOpen, setIsTourOpen] = useState<boolean>(false);
   const [isVisualGuideOpen, setIsVisualGuideOpen] = useState<boolean>(false);
   const [isAssessmentOpen, setIsAssessmentOpen] = useState<boolean>(false);
+  const [assessmentStep, setAssessmentStep] = useState<'slides' | 'mcq' | 'match' | 'dragdrop' | 'report'>('slides');
+
+  const handleOpenAssessment = (step: 'slides' | 'mcq' | 'match' | 'dragdrop' | 'report' = 'slides') => {
+    setAssessmentStep(step);
+    setIsAssessmentOpen(true);
+  };
 
   // Marker Lat/Lon state (Default at New Delhi ~28.61° N, 77.23° E)
   const [markerLat, setMarkerLat] = useState<number>(28.61);
@@ -163,7 +169,7 @@ export default function Home() {
         onOpenHelp={() => setIsHelpModalOpen(true)}
         onOpenTour={() => setIsTourOpen(true)}
         onOpenVisualGuide={() => setIsVisualGuideOpen(true)}
-        onOpenAssessment={() => setIsAssessmentOpen(true)}
+        onOpenAssessment={handleOpenAssessment}
       />
 
       {/* 2. MAIN 3D GLOBE CANVAS (FULLSCREEN BACKGROUND) */}
@@ -271,6 +277,7 @@ export default function Home() {
       <AssessmentModuleModal
         isOpen={isAssessmentOpen}
         onClose={() => setIsAssessmentOpen(false)}
+        initialStep={assessmentStep}
       />
 
       <SuccessModal

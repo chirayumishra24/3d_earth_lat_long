@@ -31,6 +31,7 @@ interface AssessmentModuleModalProps {
   isOpen: boolean;
   onClose: () => void;
   onLaunchGlobeTask?: (lat: number, lon: number) => void;
+  initialStep?: AssessmentStep;
 }
 
 type AssessmentStep = 'slides' | 'mcq' | 'match' | 'dragdrop' | 'report';
@@ -165,8 +166,9 @@ const DRAG_ITEMS: DragItem[] = [
 export const AssessmentModuleModal: React.FC<AssessmentModuleModalProps> = ({
   isOpen,
   onClose,
+  initialStep = 'slides',
 }) => {
-  const [currentStep, setCurrentStep] = useState<AssessmentStep>('slides');
+  const [currentStep, setCurrentStep] = useState<AssessmentStep>(initialStep);
   const [slideIndex, setSlideIndex] = useState<number>(0);
   const [isSpeaking, setIsSpeaking] = useState<boolean>(false);
   const [studentName, setStudentName] = useState<string>('Young Cartographer');
@@ -186,13 +188,17 @@ export const AssessmentModuleModal: React.FC<AssessmentModuleModalProps> = ({
   const [dragActiveZone, setDragActiveZone] = useState<string | null>(null);
   const [draggingItemId, setDraggingItemId] = useState<string | null>(null);
 
-  // Stop voice narration when closing
+  // Synchronize initialStep and stop voice narration when closing
   useEffect(() => {
-    if (!isOpen) {
+    if (isOpen) {
+      if (initialStep) {
+        setCurrentStep(initialStep);
+      }
+    } else {
       voiceNarrator.stop();
       setIsSpeaking(false);
     }
-  }, [isOpen]);
+  }, [isOpen, initialStep]);
 
   if (!isOpen) return null;
 
@@ -335,8 +341,8 @@ export const AssessmentModuleModal: React.FC<AssessmentModuleModalProps> = ({
             </div>
           </div>
 
-          {/* Stepper Dots */}
-          <div className="hidden sm:flex items-center gap-2">
+          {/* Stepper Tabs */}
+          <div className="flex flex-wrap items-center gap-1.5">
             {(['slides', 'mcq', 'match', 'dragdrop', 'report'] as AssessmentStep[]).map((step, idx) => (
               <button
                 key={step}
@@ -345,13 +351,13 @@ export const AssessmentModuleModal: React.FC<AssessmentModuleModalProps> = ({
                   setIsSpeaking(false);
                   setCurrentStep(step);
                 }}
-                className={`px-3 py-1 rounded-full text-xs font-semibold transition-all ${
+                className={`px-3 py-1 rounded-full text-xs font-semibold whitespace-nowrap transition-all ${
                   currentStep === step
                     ? 'bg-amber-500 text-slate-950 font-bold shadow-md shadow-amber-500/20'
                     : 'bg-slate-800 text-slate-400 hover:text-slate-200'
                 }`}
               >
-                {idx + 1}. {step.toUpperCase()}
+                {idx + 1}. {step === 'dragdrop' ? 'DRAG & DROP' : step.toUpperCase()}
               </button>
             ))}
           </div>

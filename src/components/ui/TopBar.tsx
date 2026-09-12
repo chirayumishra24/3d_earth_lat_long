@@ -27,7 +27,7 @@ interface TopBarProps {
   onOpenHelp: () => void;
   onOpenTour: () => void;
   onOpenVisualGuide: () => void;
-  onOpenAssessment: () => void;
+  onOpenAssessment: (step?: 'slides' | 'mcq' | 'match' | 'dragdrop' | 'report') => void;
 }
 
 export const TopBar: React.FC<TopBarProps> = ({
@@ -144,13 +144,26 @@ export const TopBar: React.FC<TopBarProps> = ({
         <button
           onClick={() => {
             soundManager.playClick();
-            onOpenAssessment();
+            onOpenAssessment('slides');
           }}
           title="Interactive Classroom Assessment & Quiz"
           className="flex items-center gap-1.5 px-3 py-2 rounded-2xl bg-gradient-to-r from-amber-500 to-amber-400 text-xs font-bold text-slate-950 hover:from-amber-400 hover:to-amber-300 transition-colors shadow-lg shadow-amber-500/20"
         >
           <GraduationCap className="w-3.5 h-3.5 stroke-[2.5]" />
           <span className="hidden sm:inline">Assessment Lab</span>
+        </button>
+
+        {/* Direct Drag & Drop Hemisphere Sorting Button */}
+        <button
+          onClick={() => {
+            soundManager.playClick();
+            onOpenAssessment('dragdrop');
+          }}
+          title="Launch Hemisphere Drag & Drop Sorting directly"
+          className="flex items-center gap-1.5 px-3 py-2 rounded-2xl bg-slate-900/85 backdrop-blur-xl border border-cyan-500/30 text-xs font-bold text-cyan-300 hover:border-cyan-400 hover:bg-cyan-500/10 transition-colors shadow-lg"
+        >
+          <Compass className="w-3.5 h-3.5 text-cyan-400" />
+          <span className="hidden sm:inline">Drag & Drop Lab</span>
         </button>
 
         {/* Illustrated Guide Button */}
