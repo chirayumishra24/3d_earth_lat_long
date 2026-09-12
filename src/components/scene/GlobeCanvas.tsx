@@ -49,7 +49,10 @@ interface GlobeBodyProps {
   targetLon?: number;
   isAnswerRevealed?: boolean;
   isSuccess?: boolean;
+  sunPosition?: [number, number, number];
 }
+
+const SUN_POSITION: [number, number, number] = [12, 3, 8];
 
 // Unified rigid body: Earth surface, Graticule grid, Markers, and Cities ALL rotate together
 const GlobeBody: React.FC<GlobeBodyProps> = ({
@@ -69,6 +72,7 @@ const GlobeBody: React.FC<GlobeBodyProps> = ({
   targetLon,
   isAnswerRevealed,
   isSuccess,
+  sunPosition = SUN_POSITION,
 }) => {
   const globeGroupRef = useRef<THREE.Group>(null);
 
@@ -80,10 +84,11 @@ const GlobeBody: React.FC<GlobeBodyProps> = ({
 
   return (
     <group ref={globeGroupRef}>
-      {/* 1. EARTH SURFACE MESH */}
+      {/* 1. EARTH SURFACE MESH (WITH DAY/NIGHT SHADER & CITY LIGHTS) */}
       <Earth
         onEarthClick={onMarkerChange}
         showClouds={showClouds}
+        sunPosition={sunPosition}
       />
 
       {/* 2. PROCEDURAL GRATICULE WITH DEGREE TAGS & SPECIAL TROPICS */}
@@ -144,14 +149,45 @@ export const GlobeCanvas: React.FC<GlobeCanvasProps> = ({
         gl={{ antialias: true, alpha: true, powerPreference: 'high-performance' }}
         className="w-full h-full"
       >
-        {/* BALANCED PHOTOREALISTIC LIGHTING */}
-        <ambientLight color="#ffffff" intensity={1.1} />
-        <directionalLight position={[6, 4, 6]} intensity={2.2} color="#ffffff" />
-        <directionalLight position={[-6, -3, -6]} intensity={0.5} color="#bae6fd" />
+        {/* REALISTIC SOLAR LIGHTING: DIRECTIONAL SUNLIGHT & DEEP SPACE AMBIENT */}
+        <ambientLight color="#ffffff" intensity={0.08} />
+        <directionalLight position={SUN_POSITION} intensity={2.8} color="#FFFDF5" />
+        <directionalLight position={[-SUN_POSITION[0], -SUN_POSITION[1], -SUN_POSITION[2]]} intensity={0.12} color="#0F172A" />
 
         <Suspense fallback={null}>
           {/* STARFIELD PARTICLE BACKGROUND */}
           <Starfield />
+
+          {/* CELESTIAL RADIANT SUN IN SPACE */}
+          <group position={SUN_POSITION}>
+            {/* Sun Core */}
+            <mesh>
+              <sphereGeometry args={[0.5, 32, 32]} />
+              <meshBasicMaterial color="#FFFDF0" />
+            </mesh>
+            {/* Sun Corona / Flare glow */}
+            <mesh>
+              <sphereGeometry args={[1.1, 32, 32]} />
+              <meshBasicMaterial
+                color="#FDE047"
+                transparent
+                opacity={0.35}
+                blending={THREE.AdditiveBlending}
+                side={THREE.BackSide}
+              />
+            </mesh>
+            {/* Extended Sun Atmosphere */}
+            <mesh>
+              <sphereGeometry args={[2.2, 32, 32]} />
+              <meshBasicMaterial
+                color="#F59E0B"
+                transparent
+                opacity={0.15}
+                blending={THREE.AdditiveBlending}
+                side={THREE.BackSide}
+              />
+            </mesh>
+          </group>
 
           {/* UNIFIED EARTH & GRATICULE RIGID BODY */}
           <GlobeBody
@@ -171,6 +207,7 @@ export const GlobeCanvas: React.FC<GlobeCanvasProps> = ({
             targetLon={targetLon}
             isAnswerRevealed={isAnswerRevealed}
             isSuccess={isSuccess}
+            sunPosition={SUN_POSITION}
           />
 
           {/* CAMERA RIG & SMOOTH ORBIT CONTROLS */}

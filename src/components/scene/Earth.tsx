@@ -11,12 +11,14 @@ interface EarthProps {
   onEarthClick: (lat: number, lon: number) => void;
   showClouds?: boolean;
   showAtmosphere?: boolean;
+  sunPosition?: [number, number, number];
 }
 
 export const Earth: React.FC<EarthProps> = ({
   onEarthClick,
   showClouds = true,
   showAtmosphere = true,
+  sunPosition = [10, 3, 7],
 }) => {
   const earthMeshRef = useRef<THREE.Mesh>(null);
   const cloudsMeshRef = useRef<THREE.Mesh>(null);
@@ -26,17 +28,21 @@ export const Earth: React.FC<EarthProps> = ({
   const pointerDownPos = useRef<{ x: number; y: number }>({ x: 0, y: 0 });
 
   // Load high-res NASA textures synchronously with R3F suspense
-  const [dayMap, normalMap, specularMap, cloudsMap] = useTexture([
+  const [dayMap, nightMap, normalMap, specularMap, cloudsMap] = useTexture([
     '/textures/earth_day.jpg',
+    '/textures/earth_night.png',
     '/textures/earth_normal.jpg',
     '/textures/earth_specular.jpg',
     '/textures/earth_clouds.png',
   ]);
 
   dayMap.colorSpace = THREE.SRGBColorSpace;
+  nightMap.colorSpace = THREE.SRGBColorSpace;
   cloudsMap.colorSpace = THREE.SRGBColorSpace;
   dayMap.wrapS = THREE.ClampToEdgeWrapping;
   dayMap.wrapT = THREE.ClampToEdgeWrapping;
+  nightMap.wrapS = THREE.ClampToEdgeWrapping;
+  nightMap.wrapT = THREE.ClampToEdgeWrapping;
 
   // Frame loop for clouds rotation
   useFrame((_, delta) => {
@@ -63,11 +69,139 @@ export const Earth: React.FC<EarthProps> = ({
     }
   };
 
+  // Normalized sun direction vector in world space
+  const sunDirVector = useMemo(() => {
+    return new THREE.Vector3(...sunPosition).normalize();
+  }, [sunPosition]);
+
+  // Photorealistic Day/Night Earth Shader Material
+  const earthMaterial = useMemo(() => {
+    return new THREE.ShaderMaterial({
+      uniforms: {
+        dayMap: { value: dayMap },
+        nightMap: { value: nightMap },
+        normalMap: { value: normalMap },
+        specularMap: { value: specularMap },
+        sunDirection: { value: sunDirVector },
+      },
+      vertexShader: `
+        varying vec2 vUv;
+        varying vec3 vNormal;
+        varying vec3 vWorldPosition;
+        varying vec3 vWorldNormal;
+
+        void main() {
+          vUv = uv;
+          vNormal = normalize(normalMatrix * normal);
+          vec4 worldPos = modelMatrix * vec4(position, 1.0);
+          vWorldPosition = worldPos.xyz;
+          vWorldNormal = normalize(mat3(modelMatrix) * normal);
+          gl_Position = projectionMatrix * viewMatrix * worldPos;
+        }
+      `,
+      fragmentShader: `
+        uniform sampler2D dayMap;
+        uniform sampler2D nightMap;
+        uniform sampler2D normalMap;
+        uniform sampler2D specularMap;
+        uniform vec3 sunDirection;
+
+        varying vec2 vUv;
+        varying vec3 vNormal;
+        varying vec3 vWorldPosition;
+        varying vec3 vWorldNormal;
+
+        void main() {
+          vec3 sunDir = normalize(sunDirection);
+          vec3 viewDir = normalize(cameraPosition - vWorldPosition);
+
+          // Normal mapping perturbation
+          vec3 normalTex = texture2D(normalMap, vUv).xyz * 2.0 - 1.0;
+          vec3 N = normalize(vWorldNormal + normalTex * 0.35);
+
+          // Calculate sun angle
+          float NdotL = dot(N, sunDir);
+
+          // Smooth day/night transition across the terminator
+          float dayFactor = smoothstep(-0.12, 0.18, NdotL);
+
+          vec4 dayColor = texture2D(dayMap, vUv);
+          vec4 nightColor = texture2D(nightMap, vUv);
+          vec4 specTex = texture2D(specularMap, vUv);
+
+          // Specular ocean reflection on daytime side
+          vec3 halfVector = normalize(sunDir + viewDir);
+          float specAngle = max(dot(N, halfVector), 0.0);
+          float specFactor = pow(specAngle, 32.0);
+          vec3 oceanSpec = vec3(1.0, 0.95, 0.85) * specFactor * specTex.r * dayFactor * 1.2;
+
+          // Warm twilight / sunset amber glow along the terminator line
+          float twilightFactor = smoothstep(-0.20, 0.0, NdotL) * (1.0 - smoothstep(0.0, 0.20, NdotL));
+          vec3 twilightColor = vec3(1.0, 0.42, 0.15) * twilightFactor * 0.45;
+
+          // Night city lights (homes, towns, cities glowing warmly in the dark)
+          float nightIntensity = 1.0 - dayFactor;
+          vec3 cityLights = nightColor.rgb * vec3(1.2, 1.05, 0.8) * nightIntensity * 2.5;
+
+          // Daytime diffuse lighting
+          vec3 dayLit = dayColor.rgb * (max(NdotL, 0.0) * 0.94 + 0.06);
+
+          // Composite final Earth surface color
+          vec3 finalColor = mix(dayLit, dayColor.rgb * 0.03, 1.0 - dayFactor)
+                          + cityLights
+                          + oceanSpec
+                          + twilightColor;
+
+          gl_FragColor = vec4(finalColor, 1.0);
+        }
+      `,
+    });
+  }, [dayMap, nightMap, normalMap, specularMap, sunDirVector]);
+
+  // Sun-responsive dynamic cloud layer
+  const cloudsMaterial = useMemo(() => {
+    return new THREE.ShaderMaterial({
+      uniforms: {
+        cloudsMap: { value: cloudsMap },
+        sunDirection: { value: sunDirVector },
+      },
+      vertexShader: `
+        varying vec2 vUv;
+        varying vec3 vWorldNormal;
+
+        void main() {
+          vUv = uv;
+          vWorldNormal = normalize(mat3(modelMatrix) * normal);
+          gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+        }
+      `,
+      fragmentShader: `
+        uniform sampler2D cloudsMap;
+        uniform vec3 sunDirection;
+
+        varying vec2 vUv;
+        varying vec3 vWorldNormal;
+
+        void main() {
+          vec4 cloudTex = texture2D(cloudsMap, vUv);
+          float NdotL = dot(vWorldNormal, normalize(sunDirection));
+          float cloudDayFactor = smoothstep(-0.15, 0.20, NdotL);
+          // Day clouds are white, night clouds are dark silhouettes softly obscuring city lights
+          vec3 cloudColor = mix(vec3(0.03, 0.04, 0.08), vec3(1.0, 1.0, 1.0), cloudDayFactor);
+          gl_FragColor = vec4(cloudColor, cloudTex.r * 0.45);
+        }
+      `,
+      transparent: true,
+      depthWrite: false,
+    });
+  }, [cloudsMap, sunDirVector]);
+
   // Custom Atmosphere Shader Material
   const atmosphereMaterial = useMemo(() => {
     return new THREE.ShaderMaterial({
       uniforms: {
         glowColor: { value: new THREE.Color('#38BDF8') },
+        sunDirection: { value: sunDirVector },
         coef: { value: 0.65 },
         power: { value: 3.8 },
       },
@@ -78,38 +212,24 @@ export const Earth: React.FC<EarthProps> = ({
       transparent: true,
       depthWrite: false,
     });
-  }, []);
+  }, [sunDirVector]);
 
   return (
     <group>
-      {/* 1. REALISTIC NASA EARTH SURFACE */}
+      {/* 1. REALISTIC DAY/NIGHT NASA EARTH SURFACE */}
       <mesh
         ref={earthMeshRef}
+        material={earthMaterial}
         onPointerDown={handlePointerDown}
         onPointerUp={handlePointerUp}
       >
         <sphereGeometry args={[GLOBE_RADIUS, 64, 64]} />
-        <meshStandardMaterial
-          map={dayMap}
-          normalMap={normalMap}
-          normalScale={new THREE.Vector2(0.8, 0.8)}
-          roughnessMap={specularMap}
-          roughness={0.7}
-          metalness={0.05}
-        />
       </mesh>
 
-      {/* 2. REAL DYNAMIC CLOUD LAYER */}
+      {/* 2. REAL DYNAMIC CLOUD LAYER (SHADED BY SUN) */}
       {showClouds && (
-        <mesh ref={cloudsMeshRef}>
+        <mesh ref={cloudsMeshRef} material={cloudsMaterial}>
           <sphereGeometry args={[GLOBE_RADIUS + 0.02, 64, 64]} />
-          <meshStandardMaterial
-            map={cloudsMap}
-            transparent
-            opacity={0.45}
-            blending={THREE.NormalBlending}
-            depthWrite={false}
-          />
         </mesh>
       )}
 
