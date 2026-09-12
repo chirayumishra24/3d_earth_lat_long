@@ -21,6 +21,8 @@ import {
   Compass,
   Layers,
   GraduationCap,
+  GripVertical,
+  Check,
 } from 'lucide-react';
 import { soundManager } from '@/lib/audio';
 import { voiceNarrator } from '@/lib/voice';
@@ -125,13 +127,39 @@ interface DragItem {
   id: string;
   text: string;
   correctZone: 'North' | 'South' | 'East' | 'West';
+  subtext?: string;
+  explanation?: string;
 }
 
 const DRAG_ITEMS: DragItem[] = [
-  { id: 'd1', text: 'North America', correctZone: 'North' },
-  { id: 'd2', text: 'Australia', correctZone: 'South' },
-  { id: 'd3', text: 'Asia & India', correctZone: 'East' },
-  { id: 'd4', text: 'South America', correctZone: 'West' },
+  {
+    id: 'd1',
+    text: 'North America',
+    correctZone: 'North',
+    subtext: 'Above Equator',
+    explanation: 'North America is situated completely in the Northern Hemisphere (above 0° Latitude).',
+  },
+  {
+    id: 'd2',
+    text: 'Australia',
+    correctZone: 'South',
+    subtext: 'Below Equator',
+    explanation: 'Australia is situated completely in the Southern Hemisphere (below 0° Latitude).',
+  },
+  {
+    id: 'd3',
+    text: 'Asia & India',
+    correctZone: 'East',
+    subtext: 'East of Greenwich',
+    explanation: 'The Indian subcontinent and Asia lie east of the Prime Meridian (0° Longitude).',
+  },
+  {
+    id: 'd4',
+    text: 'South America',
+    correctZone: 'West',
+    subtext: 'West of Greenwich',
+    explanation: 'South America is situated west of the Prime Meridian in the Western Hemisphere.',
+  },
 ];
 
 export const AssessmentModuleModal: React.FC<AssessmentModuleModalProps> = ({
@@ -154,6 +182,9 @@ export const AssessmentModuleModal: React.FC<AssessmentModuleModalProps> = ({
   // Drag & Drop State
   const [selectedDragItem, setSelectedDragItem] = useState<DragItem | null>(null);
   const [placedItems, setPlacedItems] = useState<{ [itemId: string]: string }>({});
+  const [dragVerified, setDragVerified] = useState<boolean>(false);
+  const [dragActiveZone, setDragActiveZone] = useState<string | null>(null);
+  const [draggingItemId, setDraggingItemId] = useState<string | null>(null);
 
   // Stop voice narration when closing
   useEffect(() => {
@@ -200,15 +231,50 @@ export const AssessmentModuleModal: React.FC<AssessmentModuleModalProps> = ({
     setSelectedLeft(null);
   };
 
-  // Drag Drop Click Handler
-  const handlePlaceItem = (zone: 'North' | 'South' | 'East' | 'West') => {
-    if (!selectedDragItem) return;
+  // Drag Drop Handlers (Supports both Native Drag-and-Drop & Click-to-place)
+  const handlePlaceItem = (zone: 'North' | 'South' | 'East' | 'West', itemId?: string) => {
+    if (dragVerified) return;
+    const targetId = itemId || selectedDragItem?.id;
+    if (!targetId) return;
     soundManager.playClick();
     setPlacedItems((prev) => ({
       ...prev,
-      [selectedDragItem.id]: zone,
+      [targetId]: zone,
     }));
     setSelectedDragItem(null);
+    setDraggingItemId(null);
+    setDragActiveZone(null);
+  };
+
+  const handleRemovePlacedItem = (itemId: string, e?: React.MouseEvent) => {
+    if (dragVerified) return;
+    e?.stopPropagation();
+    soundManager.playClick();
+    setPlacedItems((prev) => {
+      const next = { ...prev };
+      delete next[itemId];
+      return next;
+    });
+  };
+
+  const handleResetDragDrop = () => {
+    soundManager.playClick();
+    setPlacedItems({});
+    setSelectedDragItem(null);
+    setDragVerified(false);
+    setDraggingItemId(null);
+    setDragActiveZone(null);
+  };
+
+  const handleVerifyDragDrop = () => {
+    soundManager.playClick();
+    setDragVerified(true);
+    const allCorrect = DRAG_ITEMS.every(
+      (item) => placedItems[item.id] === item.correctZone
+    );
+    if (allCorrect) {
+      soundManager.playSuccess();
+    }
   };
 
   // Score Calculations
@@ -572,92 +638,298 @@ export const AssessmentModuleModal: React.FC<AssessmentModuleModalProps> = ({
         {/* ========================================================================= */}
         {currentStep === 'dragdrop' && (
           <div className="flex flex-col gap-5 animate-in fade-in duration-200">
-            <div className="bg-slate-950/40 p-4 rounded-2xl border border-white/10 text-xs text-slate-300">
-              👉 <span className="font-bold text-amber-400">Activity: </span>
-              Click a place below to select it, then click the correct Quadrant Box to place it!
+            {/* Instruction & Status Bar */}
+            <div className="bg-slate-950/60 p-4 rounded-2xl border border-white/10 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs">
+              <div className="text-slate-300">
+                👉 <span className="font-bold text-amber-400">Activity Instructions: </span>
+                Drag each region into its correct Hemisphere quadrant (or click an item, then click a quadrant box).
+              </div>
+              <div className="flex items-center gap-2 shrink-0">
+                <span className="px-2.5 py-1 rounded-lg bg-slate-900 border border-white/10 text-[11px] font-mono text-cyan-300">
+                  {Object.keys(placedItems).length} / {DRAG_ITEMS.length} Placed
+                </span>
+                {dragVerified && (
+                  <span className="px-2.5 py-1 rounded-lg bg-emerald-500/20 border border-emerald-500/40 text-[11px] font-bold text-emerald-300">
+                    {DRAG_ITEMS.filter((i) => placedItems[i.id] === i.correctZone).length} / {DRAG_ITEMS.length} Correct
+                  </span>
+                )}
+              </div>
             </div>
 
-            {/* Tokens to place */}
-            <div className="flex flex-wrap gap-2">
-              {DRAG_ITEMS.map((item) => {
-                const isSelected = selectedDragItem?.id === item.id;
-                const isPlaced = !!placedItems[item.id];
+            {/* Source Item Pool (Tray) */}
+            <div className="bg-slate-950/40 p-4 rounded-2xl border border-white/5 flex flex-col gap-2.5">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-bold uppercase tracking-wider text-cyan-400 flex items-center gap-1.5">
+                  <Compass className="w-3.5 h-3.5" />
+                  Available Regions ({DRAG_ITEMS.filter((i) => !placedItems[i.id]).length} unplaced)
+                </span>
+                {selectedDragItem && (
+                  <span className="text-[11px] text-amber-400 font-semibold animate-pulse">
+                    Selected: {selectedDragItem.text} (Click a quadrant below)
+                  </span>
+                )}
+              </div>
+
+              <div className="flex flex-wrap gap-2.5 min-h-[42px] items-center">
+                {DRAG_ITEMS.filter((item) => !placedItems[item.id]).map((item) => {
+                  const isSelected = selectedDragItem?.id === item.id;
+                  const isBeingDragged = draggingItemId === item.id;
+                  return (
+                    <button
+                      key={item.id}
+                      type="button"
+                      draggable={!dragVerified}
+                      onDragStart={(e) => {
+                        if (dragVerified) return;
+                        e.dataTransfer.setData('text/plain', item.id);
+                        setDraggingItemId(item.id);
+                      }}
+                      onDragEnd={() => setDraggingItemId(null)}
+                      onClick={() => {
+                        if (dragVerified) return;
+                        soundManager.playClick();
+                        setSelectedDragItem(isSelected ? null : item);
+                      }}
+                      className={`group flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-bold border transition-all select-none ${
+                        isSelected
+                          ? 'bg-amber-500 text-slate-950 border-amber-400 scale-105 shadow-lg shadow-amber-500/25 ring-2 ring-amber-300/40'
+                          : isBeingDragged
+                          ? 'opacity-40 border-cyan-400'
+                          : 'bg-slate-900/90 border-cyan-500/30 text-cyan-300 hover:border-cyan-400 hover:bg-cyan-500/10 cursor-grab active:cursor-grabbing'
+                      }`}
+                    >
+                      <GripVertical className="w-3.5 h-3.5 text-slate-500 group-hover:text-cyan-400" />
+                      <span>📍 {item.text}</span>
+                      {item.subtext && (
+                        <span className="text-[10px] font-normal opacity-75 hidden sm:inline">
+                          ({item.subtext})
+                        </span>
+                      )}
+                    </button>
+                  );
+                })}
+
+                {DRAG_ITEMS.filter((item) => !placedItems[item.id]).length === 0 && (
+                  <span className="text-xs text-slate-400 italic">
+                    ✨ All items have been placed into hemispheres. Click "Verify Answers" below to check correctness!
+                  </span>
+                )}
+              </div>
+            </div>
+
+            {/* 4 Quadrant Drop Bins */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              {(
+                [
+                  { zone: 'North', title: 'Northern Hemisphere', subtitle: 'Above Equator (0° to 90° N)' },
+                  { zone: 'South', title: 'Southern Hemisphere', subtitle: 'Below Equator (0° to 90° S)' },
+                  { zone: 'East', title: 'Eastern Hemisphere', subtitle: 'East of Prime Meridian (0° to 180° E)' },
+                  { zone: 'West', title: 'Western Hemisphere', subtitle: 'West of Prime Meridian (0° to 180° W)' },
+                ] as const
+              ).map(({ zone, subtitle }) => {
+                const isHovered = dragActiveZone === zone;
+                const isSelectTarget = !!selectedDragItem && !dragVerified;
+                const itemsInZone = Object.entries(placedItems)
+                  .filter(([_, z]) => z === zone)
+                  .map(([id]) => DRAG_ITEMS.find((d) => d.id === id))
+                  .filter((item): item is DragItem => !!item);
+
                 return (
-                  <button
-                    key={item.id}
-                    onClick={() => {
-                      soundManager.playClick();
-                      setSelectedDragItem(item);
+                  <div
+                    key={zone}
+                    onDragOver={(e) => {
+                      if (dragVerified) return;
+                      e.preventDefault();
+                      setDragActiveZone(zone);
                     }}
-                    className={`px-3.5 py-2 rounded-xl text-xs font-bold border transition-all ${
-                      isSelected
-                        ? 'bg-amber-500 text-slate-950 scale-105 shadow-lg'
-                        : isPlaced
-                        ? 'bg-slate-800/50 border-white/5 text-slate-500'
-                        : 'bg-cyan-500/20 border-cyan-500/40 text-cyan-300 hover:bg-cyan-500/30'
+                    onDragLeave={() => {
+                      if (dragActiveZone === zone) setDragActiveZone(null);
+                    }}
+                    onDrop={(e) => {
+                      if (dragVerified) return;
+                      e.preventDefault();
+                      const droppedId = e.dataTransfer.getData('text/plain');
+                      if (droppedId) {
+                        handlePlaceItem(zone, droppedId);
+                      }
+                    }}
+                    onClick={() => {
+                      if (selectedDragItem) {
+                        handlePlaceItem(zone);
+                      }
+                    }}
+                    className={`relative p-4 rounded-2xl border-2 transition-all duration-200 flex flex-col gap-3 min-h-[140px] ${
+                      isHovered
+                        ? 'border-cyan-400 bg-cyan-500/10 shadow-lg shadow-cyan-500/10 scale-[1.01]'
+                        : isSelectTarget
+                        ? 'border-amber-500/60 bg-amber-500/5 hover:bg-amber-500/10 cursor-pointer'
+                        : 'border-white/10 bg-slate-950/60'
                     }`}
                   >
-                    📍 {item.text} {isPlaced ? `(${placedItems[item.id]})` : ''}
-                  </button>
+                    <div className="flex items-center justify-between border-b border-white/5 pb-2">
+                      <div>
+                        <span className="text-xs font-bold uppercase tracking-wider text-slate-200 block">
+                          {zone === 'North' && '🌐 Northern Hemisphere'}
+                          {zone === 'South' && '🌐 Southern Hemisphere'}
+                          {zone === 'East' && '🧭 Eastern Hemisphere'}
+                          {zone === 'West' && '🧭 Western Hemisphere'}
+                        </span>
+                        <span className="text-[10px] text-slate-400">{subtitle}</span>
+                      </div>
+                      <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-slate-900 border border-white/10 text-slate-400">
+                        {itemsInZone.length} items
+                      </span>
+                    </div>
+
+                    {/* Placed Items inside this quadrant */}
+                    <div className="flex flex-wrap gap-2 flex-1 items-start">
+                      {itemsInZone.map((item) => {
+                        const isCorrect = item.correctZone === zone;
+                        return (
+                          <div
+                            key={item.id}
+                            draggable={!dragVerified}
+                            onDragStart={(e) => {
+                              if (dragVerified) return;
+                              e.dataTransfer.setData('text/plain', item.id);
+                              setDraggingItemId(item.id);
+                            }}
+                            onDragEnd={() => setDraggingItemId(null)}
+                            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold border transition-all ${
+                              !dragVerified
+                                ? 'bg-slate-900/90 border-slate-700 text-slate-200 hover:border-slate-500 cursor-grab active:cursor-grabbing shadow-sm'
+                                : isCorrect
+                                ? 'bg-emerald-500/20 border-emerald-500 text-emerald-300'
+                                : 'bg-rose-500/20 border-rose-500 text-rose-300'
+                            }`}
+                          >
+                            {!dragVerified ? (
+                              <>
+                                <GripVertical className="w-3 h-3 text-slate-500" />
+                                <span>{item.text}</span>
+                                <button
+                                  type="button"
+                                  onClick={(e) => handleRemovePlacedItem(item.id, e)}
+                                  title="Remove item back to tray"
+                                  className="p-0.5 ml-1 rounded-md text-slate-400 hover:text-rose-400 hover:bg-rose-500/20 transition-colors"
+                                >
+                                  <X className="w-3 h-3" />
+                                </button>
+                              </>
+                            ) : (
+                              <div className="flex flex-col gap-0.5">
+                                <div className="flex items-center gap-1.5">
+                                  {isCorrect ? (
+                                    <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
+                                  ) : (
+                                    <AlertCircle className="w-3.5 h-3.5 text-rose-400 shrink-0" />
+                                  )}
+                                  <span>{item.text}</span>
+                                </div>
+                                {!isCorrect && (
+                                  <span className="text-[10px] font-normal text-amber-300">
+                                    Should be: {item.correctZone} Hemisphere
+                                  </span>
+                                )}
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })}
+
+                      {itemsInZone.length === 0 && (
+                        <div className="flex-1 flex items-center justify-center min-h-[50px] text-[11px] text-slate-600 border border-dashed border-white/5 rounded-xl">
+                          {isSelectTarget ? 'Click here to place' : 'Drop region here'}
+                        </div>
+                      )}
+                    </div>
+                  </div>
                 );
               })}
             </div>
 
-            {/* 4 Quadrant Drop Bins */}
-            <div className="grid grid-cols-2 gap-4">
-              {(['North', 'South', 'East', 'West'] as ('North' | 'South' | 'East' | 'West')[]).map((zone) => (
-                <div
-                  key={zone}
-                  onClick={() => handlePlaceItem(zone)}
-                  className={`p-4 rounded-2xl border-2 border-dashed flex flex-col gap-2 min-h-[90px] cursor-pointer transition-all ${
-                    selectedDragItem
-                      ? 'border-amber-500/60 bg-amber-500/5 hover:bg-amber-500/10'
-                      : 'border-white/15 bg-slate-950/50'
-                  }`}
-                >
-                  <span className="text-xs font-bold uppercase tracking-wider text-slate-400">
-                    {zone === 'North' && '🌐 Northern Hemisphere'}
-                    {zone === 'South' && '🌐 Southern Hemisphere'}
-                    {zone === 'East' && '🧭 Eastern Hemisphere'}
-                    {zone === 'West' && '🧭 Western Hemisphere'}
+            {/* Post-Verification Explanations */}
+            {dragVerified && (
+              <div className="bg-slate-950/70 p-4 rounded-2xl border border-white/10 flex flex-col gap-2.5 animate-in fade-in duration-300">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-bold uppercase tracking-wider text-amber-400 flex items-center gap-1.5">
+                    <Sparkles className="w-3.5 h-3.5" />
+                    Spatial Geography Explanations
                   </span>
-
-                  <div className="flex flex-wrap gap-1.5">
-                    {Object.entries(placedItems)
-                      .filter(([_, z]) => z === zone)
-                      .map(([id]) => {
-                        const item = DRAG_ITEMS.find((d) => d.id === id);
-                        return (
-                          <span
-                            key={id}
-                            className="text-[11px] font-bold px-2 py-1 rounded-lg bg-emerald-500/20 text-emerald-300 border border-emerald-500/40"
-                          >
-                            {item?.text}
-                          </span>
-                        );
-                      })}
-                  </div>
+                  <span className="text-xs text-slate-400">
+                    Review placements before proceeding to certificate
+                  </span>
                 </div>
-              ))}
-            </div>
 
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
+                  {DRAG_ITEMS.map((item) => {
+                    const isCorrect = placedItems[item.id] === item.correctZone;
+                    return (
+                      <div
+                        key={item.id}
+                        className={`p-2.5 rounded-xl border flex items-start gap-2 ${
+                          isCorrect
+                            ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-200'
+                            : 'bg-rose-500/10 border-rose-500/30 text-rose-200'
+                        }`}
+                      >
+                        {isCorrect ? (
+                          <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0 mt-0.5" />
+                        ) : (
+                          <AlertCircle className="w-4 h-4 text-rose-400 shrink-0 mt-0.5" />
+                        )}
+                        <div>
+                          <span className="font-bold">{item.text}: </span>
+                          <span className="text-slate-300 text-[11px]">{item.explanation}</span>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
+            {/* Bottom Actions Bar */}
             <div className="flex items-center justify-between border-t border-white/10 pt-4">
               <button
                 onClick={() => setCurrentStep('match')}
-                className="px-4 py-2 rounded-xl text-xs font-semibold bg-slate-800 text-slate-300"
+                className="px-4 py-2 rounded-xl text-xs font-semibold bg-slate-800 text-slate-300 hover:bg-slate-700"
               >
                 ← Back to Matching
               </button>
 
-              <button
-                onClick={() => {
-                  soundManager.playSuccess();
-                  setCurrentStep('report');
-                }}
-                className="px-5 py-2 rounded-xl text-xs font-bold bg-gradient-to-r from-amber-500 to-amber-400 text-slate-950 hover:from-amber-400 hover:to-amber-300 shadow-xl shadow-amber-500/25"
-              >
-                Generate Report & Certificate 🎓 →
-              </button>
+              <div className="flex items-center gap-3">
+                {!dragVerified ? (
+                  <button
+                    onClick={handleVerifyDragDrop}
+                    disabled={Object.keys(placedItems).length === 0}
+                    className="px-5 py-2 rounded-xl text-xs font-bold bg-amber-500 text-slate-950 hover:bg-amber-400 disabled:opacity-40 disabled:hover:bg-amber-500 shadow-lg shadow-amber-500/20 flex items-center gap-1.5 transition-all"
+                  >
+                    <CheckCircle2 className="w-3.5 h-3.5" />
+                    <span>Verify Answers ({Object.keys(placedItems).length}/{DRAG_ITEMS.length})</span>
+                  </button>
+                ) : (
+                  <>
+                    <button
+                      onClick={handleResetDragDrop}
+                      className="px-4 py-2 rounded-xl text-xs font-semibold bg-slate-800 text-slate-300 hover:bg-slate-700 flex items-center gap-1.5 transition-all"
+                    >
+                      <RotateCcw className="w-3.5 h-3.5" />
+                      <span>Try Again</span>
+                    </button>
+
+                    <button
+                      onClick={() => {
+                        soundManager.playSuccess();
+                        setCurrentStep('report');
+                      }}
+                      className="px-5 py-2 rounded-xl text-xs font-bold bg-gradient-to-r from-amber-500 to-amber-400 text-slate-950 hover:from-amber-400 hover:to-amber-300 shadow-xl shadow-amber-500/25 flex items-center gap-1.5 transition-all"
+                    >
+                      <span>Generate Report & Certificate 🎓 →</span>
+                    </button>
+                  </>
+                )}
+              </div>
             </div>
           </div>
         )}
@@ -733,6 +1005,11 @@ export const AssessmentModuleModal: React.FC<AssessmentModuleModalProps> = ({
               <button
                 onClick={() => {
                   soundManager.playClick();
+                  handleResetDragDrop();
+                  setMcqSubmitted(false);
+                  setMcqAnswers([null, null, null]);
+                  setMatchedPairs({});
+                  setSelectedLeft(null);
                   setCurrentStep('slides');
                 }}
                 className="px-4 py-2 rounded-xl text-xs font-semibold bg-slate-800 text-slate-300 flex items-center gap-1.5"
